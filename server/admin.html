@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prism Team Instances</title>
+  <style>
+    :root { color-scheme: dark; font: 16px/1.5 system-ui, sans-serif; background: #0c1220; color: #eaf2ff; }
+    body { max-width: 760px; margin: 8vh auto; padding: 0 20px; }
+    main { padding: 28px; border: 1px solid #ffffff30; border-radius: 24px; background: linear-gradient(145deg,#253653bd,#121b2cc9); box-shadow: 0 28px 90px #0008; backdrop-filter: blur(22px); }
+    h1 { margin: 0 0 8px; font-size: 1.8rem; } p { color: #b5c4dd; }
+    label { display: block; margin: 18px 0 6px; font-weight: 650; }
+    input { box-sizing: border-box; width: 100%; border-radius: 12px; border: 1px solid #ffffff35; background: #0c1526bf; color: inherit; padding: 12px; }
+    button { margin-top: 20px; padding: 12px 18px; border: 1px solid #ffffff70; border-radius: 12px; background: linear-gradient(120deg,#72dfcedd,#9fc7ffcc); color: #0c1a25; font-weight: 750; cursor: pointer; }
+    button:disabled { opacity: .55; cursor: wait; }
+    #status { min-height: 1.5em; margin-top: 14px; }
+    .current { margin-top: 22px; padding: 14px; border: 1px solid #ffffff28; border-radius: 14px; background: #ffffff12; }
+    small { color: #9fb1ce; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Prism Team Instance</h1>
+    <p>Tải lên một ZIP <strong>Export instance</strong> từ Prism Launcher. Launcher của team sẽ tải gói mới nhất, nhập thành instance mới và lưu trong thư mục <code>PrismLauncherTeam\instances</code>.</p>
+    <p>Host cũng tự quét ZIP mới nhất trong thư mục <code>server/packs</code>. Có thể chép trực tiếp một file ZIP vào đó; không cần tạo file metadata đi kèm.</p>
+    <label for="packName">Tên instance</label><input id="packName" value="Team Instance" maxlength="80">
+    <label for="version">Phiên bản / ghi chú</label><input id="version" value="latest" maxlength="40">
+    <label for="token">Mã upload</label><input id="token" type="password" autocomplete="off" placeholder="TEAM_UPLOAD_TOKEN">
+    <label for="file">ZIP Export instance (phải có instance.cfg)</label><input id="file" type="file" accept=".zip,application/zip">
+    <button id="upload">Tải ZIP lên host</button>
+    <div id="status" role="status"></div>
+    <div class="current" id="current">Đang kiểm tra ZIP mới nhất…</div>
+    <small>Mã upload chỉ được giữ tạm trong trang này và gửi tới máy chủ.</small>
+  </main>
+<script>
+const status = document.querySelector('#status');
+const current = document.querySelector('#current');
+const button = document.querySelector('#upload');
+async function loadCurrent() {
+  try {
+    const response = await fetch('/api/packs', { cache: 'no-store' });
+    const data = await response.json();
+    current.textContent = data.packs?.length
+      ? `ZIP mới nhất: ${data.packs[0].name} · ${data.packs[0].version} · ${new Date(data.packs[0].updatedAt).toLocaleString()}`
+      : 'Chưa có file ZIP nào trong packs.';
+  } catch { current.textContent = 'Không thể tải trạng thái ZIP.'; }
+}
+document.querySelector('#file').addEventListener('change', event => {
+  const file = event.target.files[0];
+  if (file && document.querySelector('#packName').value === 'Team Instance') {
+    document.querySelector('#packName').value = file.name.replace(/\.zip$/i, '');
+  }
+});
+button.addEventListener('click', async () => {
+  const file = document.querySelector('#file').files[0];
+  const token = document.querySelector('#token').value;
+  if (!file || !token) { status.textContent = 'Chọn ZIP Export instance và nhập mã upload.'; return; }
+  button.disabled = true;
+  status.textContent = `Đang tải ${file.name}…`;
+  try {
+    const response = await fetch('/api/packs', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/zip',
+        'X-Pack-Name': document.querySelector('#packName').value,
+        'X-Pack-Version': document.querySelector('#version').value,
+      },
+      body: file,
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || `HTTP ${response.status}`);
+    status.textContent = `Đã cập nhật ZIP instance ${result.name} (${result.version}).`;
+    await loadCurrent();
+  } catch (error) { status.textContent = `Tải lên thất bại: ${error.message}`; }
+  finally { button.disabled = false; }
+});
+loadCurrent();
+</script>
+</body>
+</html>

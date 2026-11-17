@@ -1,0 +1,10 @@
+{
+  "name": "prism-team-pack-host",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Private Node.js host for Prism team mod ZIPs",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": { "node": ">=20" }
+}
